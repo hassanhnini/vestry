@@ -1,26 +1,125 @@
 @import "tailwindcss";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/inter-tight";
+
+/* ------------------------------------------------------------------
+   Vestry design tokens — warm ivory, charcoal ink, muted taupe and a
+   single clay accent. Contrast checked for WCAG AA on ivory/paper.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-ivory: #f5f0e8;
+  --color-paper: #fcfaf6;
+  --color-shell: #ece5da;
+  --color-line: #e2d9cc;
+  --color-taupe: #8a7d70;
+  --color-taupe-soft: #b8ab9c;
+  --color-ink: #24211f;
+  --color-ink-soft: #5a524b;
+  --color-clay: #97492f;
+  --color-clay-soft: #f1dfd5;
+  --color-sage: #55654a;
+  --color-sage-soft: #e3e8dc;
+  --color-danger: #9f2f22;
+  --color-danger-soft: #f6dfda;
+
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Inter Tight Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-card: 1.25rem;
+  --shadow-soft: 0 1px 2px rgb(36 33 31 / 0.04), 0 8px 24px -12px rgb(36 33 31 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(36 33 31 / 0.05), 0 18px 40px -18px rgb(36 33 31 / 0.25);
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade-in: fade-in 0.3s ease both;
+  --animate-sheet-up: sheet-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-taupe);
+}
+
+/* Soft studio backdrop behind garment cutouts */
+.garment-stage {
+  background:
+    radial-gradient(120% 90% at 50% 15%, #fffdf9 0%, #f4eee5 70%, #eee6da 100%);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #ece5da 0%, #f6f1e9 50%, #ece5da 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+.cutout-shadow {
+  filter: drop-shadow(0 6px 7px rgb(36 33 31 / 0.11)) drop-shadow(0 1px 2px rgb(36 33 31 / 0.07));
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-clay);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

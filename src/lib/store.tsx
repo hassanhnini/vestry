@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { LocalRepo } from "./data/local-repo";
 import { SupabaseRepo } from "./data/supabase-repo";
 import { DEFAULT_PROFILE, newId, nowIso, type Repo } from "./data/repo";
+import { removeItemFromOutfits } from "./outfits";
 import { supabase } from "./supabase/client";
 import type { ClothingItem, Outfit, PlannerEntry, StyleProfile, WearLog } from "./types";
 import { localDate } from "./dates";
@@ -105,26 +106,18 @@ export function WardrobeProvider({ children }: { children: ReactNode }) {
 
   const deleteItem = useCallback(async (id: string) => {
     const r = need();
-    // Safe deletion: remove the piece from outfits; outfits that are no longer wearable go too.
-    let removed = 0;
-    const touched: Outfit[] = [];
-    for (const o of stateRef.current.outfits.filter((o) => o.itemIds.includes(id))) {
-      const remaining = o.itemIds.filter((x) => x !== id);
-      if (remaining.length < 2) {
-        await deleteOutfitInternal(r, o.id);
-        removed++;
-      } else {
-        const next = { ...o, itemIds: remaining, updatedAt: nowIso() };
-        await r.saveOutfit(next);
-        touched.push(next);
-      }
-    }
+    // Safe deletion: outfits left unwearable go, and the rest are rewritten so nothing they say
+    // refers to a garment the user no longer owns.
+    const { updated, deleted } = removeItemFromOutfits(id, stateRef.current.outfits, stateRef.current.items, stateRef.current.profile, nowIso());
+    for (const outfitId of deleted) await deleteOutfitInternal(r, outfitId);
+    for (const outfit of updated) await r.saveOutfit(outfit);
     await r.deleteItem(id);
-    const removedIds = new Set(stateRef.current.outfits.filter((o) => o.itemIds.includes(id) && !touched.find((t) => t.id === o.id)).map((o) => o.id));
+    const removedIds = new Set(deleted);
+    const byId = new Map(updated.map((o) => [o.id, o]));
     setItems((xs) => xs.filter((x) => x.id !== id));
-    setOutfits((os) => os.filter((o) => !removedIds.has(o.id)).map((o) => touched.find((t) => t.id === o.id) ?? o));
+    setOutfits((os) => os.filter((o) => !removedIds.has(o.id)).map((o) => byId.get(o.id) ?? o));
     setPlanner((ps) => ps.filter((p) => !removedIds.has(p.outfitId)));
-    return { removedOutfits: removed };
+    return { removedOutfits: deleted.length };
   }, [need, deleteOutfitInternal]);
 
   const saveOutfit: WardrobeState["saveOutfit"] = useCallback(async (o) => {
@@ -259,25 +252,41 @@ export function useWardrobe() {
 }
 
 /** Resolve a storage path to a displayable URL (object URL in demo mode, signed URL in cloud mode). */
-const urlCache = new Map<string, string>();
+/** How many times one image may be resolved again after the browser failed to load it. */
+const IMAGE_RETRIES = 1;
+
 export function useImageUrl(path: string | null | undefined) {
   const { repo } = useWardrobe();
   const [state, setState] = useState<{ path: string; url: string | null; failed: boolean } | null>(null);
+  const [retry, setRetry] = useState({ path: "", n: 0 });
+  const attempts = useRef({ path: "", n: 0 });
+
   useEffect(() => {
     if (!path || !repo) return;
     let alive = true;
-    repo
-      .getImageUrl(path)
-      .then((u) => {
-        urlCache.set(path, u);
-        if (alive) setState({ path, url: u, failed: false });
-      })
+    // Cloud image links are signed and expire, so a retry asks the repository to sign a new one
+    // rather than handing back the link the browser has just refused.
+    const resolving = retry.path === path && retry.n > 0 ? repo.refreshImageUrl(path) : repo.getImageUrl(path);
+    resolving
+      .then((url) => alive && setState({ path, url, failed: false }))
       .catch(() => alive && setState({ path, url: null, failed: true }));
     return () => {
       alive = false;
     };
-  }, [path, repo]);
-  if (!path) return { url: null, failed: false };
-  if (state?.path === path) return { url: state.url, failed: state.failed };
-  return { url: urlCache.get(path) ?? null, failed: false };
+  }, [path, repo, retry]);
+
+  /** The browser could not load the link. False once there is nothing left to try. */
+  const reload = useCallback(() => {
+    if (!path) return false;
+    if (attempts.current.path !== path) attempts.current = { path, n: 0 };
+    if (attempts.current.n >= IMAGE_RETRIES) return false;
+    attempts.current = { path, n: attempts.current.n + 1 };
+    setRetry(attempts.current);
+    return true;
+  }, [path]);
+
+  if (!path) return { url: null, failed: false, reload };
+  if (state?.path === path) return { url: state.url, failed: state.failed, reload };
+  // Nothing resolved for this path yet: paint a link the repository knows is still good.
+  return { url: repo?.cachedImageUrl(path) ?? null, failed: false, reload };
 }

@@ -1,9 +1,9 @@
 "use client";
 import { COLORS, OCCASIONS, STYLES } from "@/lib/taxonomy";
-import type { Climate, Occasion, StyleId, StyleProfile } from "@/lib/types";
+import type { Climate, Hemisphere, Occasion, StyleId, StyleProfile } from "@/lib/types";
 import { Chip, cx } from "../ui/primitives";
 
-type P = Pick<StyleProfile, "styles" | "favoriteColors" | "avoidColors" | "occasions" | "climate" | "fit" | "comfort">;
+type P = Pick<StyleProfile, "styles" | "favoriteColors" | "avoidColors" | "occasions" | "climate" | "hemisphere" | "fit" | "comfort">;
 const toggle = <T,>(xs: T[], x: T) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
 
 export function StylesField({ value, onChange }: { value: P; onChange: (p: Partial<P>) => void }) {
@@ -66,14 +66,32 @@ const CLIMATES: { id: Climate; label: string }[] = [
   { id: "tropical", label: "Tropical" },
 ];
 
+const HEMISPHERES: { id: Hemisphere; label: string }[] = [
+  { id: "northern", label: "Northern" },
+  { id: "southern", label: "Southern" },
+];
+
 export function ClimateField({ value, onChange }: { value: P; onChange: (p: Partial<P>) => void }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {CLIMATES.map((c) => (
-        <Chip key={c.id} selected={value.climate === c.id} onClick={() => onChange({ climate: value.climate === c.id ? undefined : c.id })}>
-          {c.label}
-        </Chip>
-      ))}
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-2">
+        {CLIMATES.map((c) => (
+          <Chip key={c.id} selected={value.climate === c.id} onClick={() => onChange({ climate: value.climate === c.id ? undefined : c.id })}>
+            {c.label}
+          </Chip>
+        ))}
+      </div>
+      <div>
+        <p className="mb-2.5 text-sm font-medium">Hemisphere</p>
+        <p className="mb-2.5 text-[0.8125rem] text-ink-soft">So that &ldquo;today&rsquo;s season&rdquo; matches yours. Northern unless you say otherwise.</p>
+        <div className="flex flex-wrap gap-2">
+          {HEMISPHERES.map((h) => (
+            <Chip key={h.id} selected={(value.hemisphere ?? "northern") === h.id} onClick={() => onChange({ hemisphere: h.id })}>
+              {h.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

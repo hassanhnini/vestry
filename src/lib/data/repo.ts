@@ -30,6 +30,10 @@ export interface Repo {
   putImage(key: string, blob: Blob): Promise<string>;
   /** Resolve a storage path to a URL the browser can display. */
   getImageUrl(path: string): Promise<string>;
+  /** A URL known to still be valid, for a first paint without a round trip. Null if there is none. */
+  cachedImageUrl(path: string): string | null;
+  /** Resolve again from scratch, discarding anything cached — a signed link that has expired. */
+  refreshImageUrl(path: string): Promise<string>;
   getImageBlob(path: string): Promise<Blob | null>;
   deleteImage(path: string): Promise<void>;
 

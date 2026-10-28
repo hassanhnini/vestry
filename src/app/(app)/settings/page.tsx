@@ -129,7 +129,15 @@ export default function SettingsPage() {
         ) : (
           <Row title="Signed in" body={user?.email} action={<Badge tone="success"><Cloud className="size-3.5" /> Synced</Badge>} />
         )}
-        <Row title="Log out" action={<Button size="sm" variant="secondary" onClick={() => signOut()}>Log out</Button>} />
+        {mode === "demo" ? (
+          <Row
+            title="Leave demo mode"
+            body="Takes you back to the welcome screen. Your closet stays in this browser — start the demo again and it is all still here."
+            action={<Button size="sm" variant="secondary" onClick={() => signOut()}>Leave demo</Button>}
+          />
+        ) : (
+          <Row title="Log out" action={<Button size="sm" variant="secondary" onClick={() => signOut()}>Log out</Button>} />
+        )}
       </Section>
 
       <Section title="Photos & AI">

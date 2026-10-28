@@ -98,6 +98,14 @@ export class LocalRepo implements Repo {
   async getImageBlob(path: string) {
     return (await (await this.dbp).get("images", path)) ?? null;
   }
+  cachedImageUrl(path: string) {
+    return this.urls.get(path) ?? null;
+  }
+  async refreshImageUrl(path: string) {
+    // Object URLs do not expire, but the blob behind one can have been replaced.
+    this.revoke(path);
+    return this.getImageUrl(path);
+  }
   async getImageUrl(path: string) {
     const cached = this.urls.get(path);
     if (cached) return cached;

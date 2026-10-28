@@ -38,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       className={cx(
-        "inline-flex select-none items-center justify-center rounded-full font-medium tracking-[-0.005em] transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45",
+        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-full font-medium tracking-[-0.005em] transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45",
         variants[variant],
         sizes[size],
         className,
@@ -65,7 +65,7 @@ export function ButtonLink({
     <Link
       href={href}
       className={cx(
-        "inline-flex select-none items-center justify-center rounded-full font-medium transition-all duration-200 active:scale-[0.98]",
+        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-full font-medium transition-all duration-200 active:scale-[0.98]",
         variants[variant],
         sizes[size],
         className,

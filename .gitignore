@@ -45,3 +45,6 @@ public/bg-models/
 # test output
 /test-results/
 /playwright-report/
+
+# local tooling (dev server launch config)
+.claude/

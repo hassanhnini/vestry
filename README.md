@@ -10,7 +10,7 @@ It works without any account, API key or paid service. In that case it runs in *
 
 | Area | Status |
 | --- | --- |
-| Welcome, onboarding style profile (skippable), demo mode | ✅ |
+| Welcome, onboarding style profile (skippable, incl. climate and hemisphere), demo mode | ✅ |
 | Sign up / log in / log out / password reset / update password | ✅ with Supabase configured (demo mode otherwise) |
 | Add clothes: camera, gallery, multi-select, drag & drop, crop/rotate | ✅ |
 | **Real background removal** (ISNet model via ONNX Runtime WASM, self-hosted, on-device) | ✅ |
@@ -160,6 +160,7 @@ src/
                             diversity-aware (MMR) selection; explanations; swap alternatives
     stylist/grounding.ts    Rejects any model outfit that isn't wearable from the real closet
     stylist/prompt.ts       Alias-based prompt builder
+    outfits.ts              What a deleted garment does to saved outfits (rewrite or remove)
     data/repo.ts            Storage interface
     data/local-repo.ts      Demo mode: IndexedDB (records + image blobs)
     data/supabase-repo.ts   Cloud mode: Postgres + private Storage with signed URLs
@@ -193,7 +194,7 @@ On-device background removal uses [`@imgly/background-removal`](https://github.c
 
 What runs in this repository:
 
-- **Vitest (37 tests)**: stylist engine (closet-only output, completeness, diversity, exclusions, anchors, cold-weather layering, dress codes, clash penalties, avoided colours, swaps), grounding (fabricated ids, incomplete and duplicate outfits, anchors, archived items), colour science, on-device analysis (leg gap, sleeves, stripes, filename hints), closet filters, insights, and API routes (honest 503 without keys, validation, rate limiting, a mocked Gemini response with alias mapping, quota errors, prompt-injection hygiene).
+- **Vitest (48 tests)**: stylist engine (closet-only output, completeness, diversity, exclusions, anchors, cold-weather layering, dress codes, clash penalties, avoided colours, swaps), grounding (fabricated ids, incomplete and duplicate outfits, anchors, archived items), the delete cascade (saved outfits never keep the name or explanation of a deleted piece, and ones left unwearable are removed), seasons north and south of the equator, colour science, on-device analysis (leg gap, sleeves, stripes, filename hints), closet filters, insights, and API routes (honest 503 without keys, validation, rate limiting, a mocked Gemini response with alias mapping, quota errors, prompt-injection hygiene).
 - **Playwright (2 tests, mobile Chromium)**: the full journey. It enters demo mode, rejects an invalid file, bulk-uploads 5 photos, and checks they're processed **one at a time** by the **real** model and that the cut-outs have genuine transparency. It then corrects predictions, saves, verifies persistence across reloads, generates outfits and checks every piece exists in the closet, saves an outfit and checks it persists, plans it for today, edits and deletes an item, and checks the offline banner. A second test checks the empty states.
 - The SQL migration was applied twice (idempotency) to PostgreSQL with stubbed `auth` and `storage` schemas. Cross-user reads and writes were blocked by RLS, check constraints rejected bad data, and cascades worked.
 

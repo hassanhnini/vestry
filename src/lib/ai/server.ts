@@ -57,11 +57,22 @@ export async function authorize(req: Request, bucket: string, limitPerHour: numb
   return null;
 }
 
+const HOUR_MS = 3_600_000;
 const hits = new Map<string, number[]>();
+let sweptAt = 0;
+
+/** Drop keys whose last call has aged out, so the map does not grow for the life of the process. */
+function sweep(now: number) {
+  if (now - sweptAt < HOUR_MS) return;
+  sweptAt = now;
+  for (const [key, times] of hits) if (!times.length || now - times[times.length - 1] >= HOUR_MS) hits.delete(key);
+}
+
 /** Best-effort in-memory limiter (per server instance). Use a shared store for multi-instance deployments. */
 export function rateLimit(key: string, limitPerHour: number) {
   const now = Date.now();
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < 3_600_000);
+  sweep(now);
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < HOUR_MS);
   if (recent.length >= limitPerHour) throw new HttpError(429, "You've reached the hourly AI limit. Try again later — the on-device stylist still works.");
   recent.push(now);
   hits.set(key, recent);

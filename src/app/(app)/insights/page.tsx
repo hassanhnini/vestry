@@ -87,7 +87,7 @@ export default function InsightsPage() {
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-sage">Everything is getting worn. Lovely.</p>
+              <p className="mt-3 text-sm text-sage">{ins.tracksWear ? "Everything is getting worn. Lovely." : "Every piece is in at least one outfit. Lovely."}</p>
             )}
           </section>
 

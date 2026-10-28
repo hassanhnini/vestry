@@ -91,11 +91,15 @@ function mulberry32(seed: number) {
   };
 }
 
-export function seasonFor(date: Date, climate?: StyleProfile["climate"]): Season {
-  const m = date.getMonth(); // northern-hemisphere default; the user can always pick a season explicitly
-  const s: Season = m <= 1 || m === 11 ? "winter" : m <= 4 ? "spring" : m <= 7 ? "summer" : "autumn";
-  if (climate === "tropical") return "summer";
-  if (climate === "cold" && s === "autumn") return "winter";
+const OPPOSITE: Record<Season, Season> = { winter: "summer", spring: "autumn", summer: "winter", autumn: "spring" };
+
+/** Today's season where the user is. Set `hemisphere` in the style profile south of the equator. */
+export function seasonFor(date: Date, profile?: Pick<StyleProfile, "climate" | "hemisphere"> | null): Season {
+  const m = date.getMonth();
+  const northern: Season = m <= 1 || m === 11 ? "winter" : m <= 4 ? "spring" : m <= 7 ? "summer" : "autumn";
+  const s = profile?.hemisphere === "southern" ? OPPOSITE[northern] : northern;
+  if (profile?.climate === "tropical") return "summer";
+  if (profile?.climate === "cold" && s === "autumn") return "winter";
   return s;
 }
 
@@ -151,7 +155,7 @@ interface Resolved {
 
 function resolve(req: StyleRequest, ctx: StylistContext): Resolved {
   const now = ctx.now ?? new Date();
-  const season = req.season ?? (req.weather ? seasonFromWeather(req.weather) : null) ?? seasonFor(now, ctx.profile?.climate);
+  const season = req.season ?? (req.weather ? seasonFromWeather(req.weather) : null) ?? seasonFor(now, ctx.profile);
   const weather = req.weather ?? weatherFromSeason(season);
   const styles: StyleId[] = req.style ? [req.style] : ctx.profile?.styles?.length ? ctx.profile.styles : [];
   const palette =
@@ -423,6 +427,29 @@ export function nameOutfit(items: ClothingItem[], req: StyleRequest): string {
   return partner ? `${cap(heroName)} & ${label(partner).toLowerCase()}` : cap(heroName);
 }
 
+/** Does this text name the garment, either by its own name or by its colour and category? */
+export function mentionsItem(text: string, item: ClothingItem): boolean {
+  const t = text.toLowerCase();
+  const own = item.name.trim().toLowerCase();
+  const label = `${COLOR_BY_ID[primaryColorId(item)]?.label ?? ""} ${CATEGORIES[item.category]?.label ?? ""}`.trim().toLowerCase();
+  return (own.length > 2 && t.includes(own)) || (label.length > 2 && t.includes(label));
+}
+
+/**
+ * Rebuild the automatic name and explanation for a set of pieces. Used when an outfit changes
+ * after it was saved, so nothing it says can refer to a garment that is no longer in the closet.
+ */
+export function describeOutfit(items: ClothingItem[], req: StyleRequest = {}, ctx: StylistContext = {}): { name: string; explanation: string } {
+  const ordered = orderItems(items);
+  return { name: nameOutfit(ordered, req), explanation: explainOutfit(ordered, req, ctx) || FALLBACK_EXPLANATION };
+}
+
+const FALLBACK_EXPLANATION = "A balanced combination of pieces from your closet.";
+
+function rankReasons(scored: Scored) {
+  return [...scored.reasons].sort((a, b) => b.weight - a.weight).map((x) => x.text);
+}
+
 interface Pools {
   top: ClothingItem[];
   bottom: ClothingItem[];
@@ -556,13 +583,12 @@ export function generateOutfits(closet: ClothingItem[], req: StyleRequest, ctx: 
 
   const outfits = chosen.map(({ items, scored }) => {
     const ordered = orderItems(items);
-    const reasons = [...scored.reasons].sort((a, b) => b.weight - a.weight).map((x) => x.text);
     const anchorNote = anchors.length ? [`Built around your ${anchors.map((a) => a.name.toLowerCase()).join(" and ")}.`] : [];
-    const unique = [...new Set([...anchorNote, ...reasons])];
+    const unique = [...new Set([...anchorNote, ...rankReasons(scored)])];
     return {
       itemIds: ordered.map((i) => i.id),
       name: nameOutfit(ordered, req),
-      explanation: unique.slice(0, 3).join(" ") || "A balanced combination of pieces from your closet.",
+      explanation: unique.slice(0, 3).join(" ") || FALLBACK_EXPLANATION,
       reasons: unique,
       score: Math.round(scored.total * 100) / 100,
       signature: signatureOf(ordered.map((i) => i.id)),
@@ -601,8 +627,7 @@ export function alternativesFor(
 }
 
 export function explainOutfit(items: ClothingItem[], req: StyleRequest = {}, ctx: StylistContext = {}) {
-  const s = scoreOutfit(items, req, ctx);
-  return [...s.reasons].sort((a, b) => b.weight - a.weight).map((x) => x.text).slice(0, 3).join(" ");
+  return [...new Set(rankReasons(scoreOutfit(items, req, ctx)))].slice(0, 3).join(" ");
 }
 
 export const STYLE_OPTIONS = STYLES.map((s) => ({ id: s.id, label: s.label }));

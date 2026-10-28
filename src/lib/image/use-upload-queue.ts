@@ -46,7 +46,33 @@ export interface Draft {
   savedId?: string;
 }
 
+/**
+ * Cut-outs for photos already processed, so adding the same picture twice never runs the model
+ * again. Capped, because a bulk add of thirty photos on a phone should not hold thirty cut-outs
+ * in memory for the rest of the session.
+ */
+const CUTOUT_CACHE_MAX = 8;
 const cutoutCache = new Map<string, Blob>();
+
+function rememberCutout(hash: string, blob: Blob) {
+  cutoutCache.delete(hash);
+  cutoutCache.set(hash, blob);
+  while (cutoutCache.size > CUTOUT_CACHE_MAX) {
+    const oldest = cutoutCache.keys().next().value;
+    if (oldest === undefined) break;
+    cutoutCache.delete(oldest);
+  }
+}
+
+function recallCutout(hash: string) {
+  const blob = cutoutCache.get(hash);
+  if (blob) rememberCutout(hash, blob);
+  return blob ?? null;
+}
+
+function releaseUrls(d: Pick<Draft, "sourceUrl" | "originalUrl" | "cutoutUrl">) {
+  for (const u of [d.sourceUrl, d.originalUrl, d.cutoutUrl]) if (u) URL.revokeObjectURL(u);
+}
 
 function analysisToForm(a: Analysis): ItemForm {
   return {
@@ -149,7 +175,7 @@ export function useUploadQueue() {
         patch(key, { original, originalUrl: URL.createObjectURL(original), hash, duplicateOf: dup?.id });
 
         // Avoid reprocessing the exact same photo: reuse an existing cutout when we have one.
-        let cutoutBlob: Blob | null = cutoutCache.get(hash) ?? null;
+        let cutoutBlob: Blob | null = recallCutout(hash);
         if (!cutoutBlob && dup?.imageCutout && repo) cutoutBlob = await repo.getImageBlob(dup.imageCutout);
         let coverage = 0.5;
         if (!cutoutBlob) {
@@ -163,7 +189,7 @@ export function useUploadQueue() {
           const cut = await finaliseCutout(png);
           cutoutBlob = cut.blob;
           coverage = cut.coverage;
-          cutoutCache.set(hash, cutoutBlob);
+          rememberCutout(hash, cutoutBlob);
         }
         patch(key, { cutout: cutoutBlob, cutoutUrl: URL.createObjectURL(cutoutBlob), coverage, status: "analyzing", stage: "Reading colours and details", progress: null });
 
@@ -253,7 +279,11 @@ export function useUploadQueue() {
     }
   }, [patch]);
 
-  const remove = useCallback((key: string) => setDrafts((ds) => ds.filter((d) => d.key !== key)), []);
+  const remove = useCallback((key: string) => {
+    const gone = draftsRef.current.find((d) => d.key === key);
+    if (gone) releaseUrls(gone);
+    setDrafts((ds) => ds.filter((d) => d.key !== key));
+  }, []);
   const updateForm = useCallback((key: string, form: ItemForm) => patch(key, { form }), [patch]);
 
   const save = useCallback(
@@ -298,7 +328,8 @@ export function useUploadQueue() {
 
   useEffect(
     () => () => {
-      for (const d of draftsRef.current) [d.sourceUrl, d.originalUrl, d.cutoutUrl].forEach((u) => u && URL.revokeObjectURL(u));
+      for (const d of draftsRef.current) releaseUrls(d);
+      cutoutCache.clear();
     },
     [],
   );

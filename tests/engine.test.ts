@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alternativesFor, generateOutfits, roleOf, scoreOutfit } from "@/lib/stylist/engine";
+import { alternativesFor, generateOutfits, roleOf, scoreOutfit, seasonFor } from "@/lib/stylist/engine";
 import { item, sampleCloset } from "./fixtures";
 
 const ids = (c: { id: string }[]) => new Set(c.map((i) => i.id));
@@ -103,5 +103,27 @@ describe("rules stylist", () => {
       expect(roleOf(a.item)).toBe("shoes");
       expect(a.item.id).not.toBe("sneakers");
     }
+  });
+});
+
+describe("today's season", () => {
+  const january = new Date("2026-01-15T12:00:00Z");
+  const july = new Date("2026-07-15T12:00:00Z");
+
+  it("follows the northern hemisphere when nothing is set", () => {
+    expect(seasonFor(january)).toBe("winter");
+    expect(seasonFor(july)).toBe("summer");
+    expect(seasonFor(january, { hemisphere: "northern" })).toBe("winter");
+  });
+
+  it("flips for someone south of the equator", () => {
+    expect(seasonFor(january, { hemisphere: "southern" })).toBe("summer");
+    expect(seasonFor(july, { hemisphere: "southern" })).toBe("winter");
+    expect(seasonFor(new Date("2026-10-15T12:00:00Z"), { hemisphere: "southern" })).toBe("spring");
+  });
+
+  it("still lets the climate override the calendar", () => {
+    expect(seasonFor(july, { hemisphere: "southern", climate: "tropical" })).toBe("summer");
+    expect(seasonFor(new Date("2026-04-15T12:00:00Z"), { hemisphere: "southern", climate: "cold" })).toBe("winter");
   });
 });

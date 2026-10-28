@@ -37,7 +37,7 @@ export default function Home() {
   const daySeed = Number(today.replace(/-/g, "")) + shuffle * 101;
   const suggestion = useMemo(() => {
     if (plannedOutfit) return null;
-    const r = generateOutfits(items, { count: 1, seed: daySeed, season: seasonFor(now, profile.climate) }, { profile });
+    const r = generateOutfits(items, { count: 1, seed: daySeed, season: seasonFor(now, profile) }, { profile });
     return r.outfits[0] ?? null;
   }, [items, plannedOutfit, daySeed, now, profile]);
   const insights = useMemo(() => computeInsights(items, outfits, wear, now), [items, outfits, wear, now]);

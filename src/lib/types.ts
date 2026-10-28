@@ -175,6 +175,9 @@ export interface WearLog {
 
 export type Climate = "cold" | "temperate" | "warm" | "tropical";
 
+/** Which half of the world the user dresses in — it decides what season "today" is. */
+export type Hemisphere = "northern" | "southern";
+
 export interface StyleProfile {
   displayName: string;
   styles: StyleId[];
@@ -183,6 +186,8 @@ export interface StyleProfile {
   occasions: Occasion[];
   city?: string;
   climate?: Climate;
+  /** Defaults to northern when unset, which is what the seasons assumed before this existed. */
+  hemisphere?: Hemisphere;
   fit: "relaxed" | "tailored" | "mixed";
   /** 1 = style over comfort … 5 = comfort first */
   comfort: number;

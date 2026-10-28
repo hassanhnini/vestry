@@ -10,7 +10,7 @@ It works without any account, API key or paid service. In that case it runs in *
 
 | Area | Status |
 | --- | --- |
-| Welcome, onboarding style profile (skippable), demo mode | ✅ |
+| Welcome, onboarding style profile (skippable, incl. climate and hemisphere), demo mode | ✅ |
 | Sign up / log in / log out / password reset / update password | ✅ with Supabase configured (demo mode otherwise) |
 | Add clothes: camera, gallery, multi-select, drag & drop, crop/rotate | ✅ |
 | **Real background removal** (ISNet model via ONNX Runtime WASM, self-hosted, on-device) | ✅ |
@@ -118,19 +118,52 @@ Set `AI_PROVIDER=gemini` or `AI_PROVIDER=claude` if both keys are present, or `A
 
 ## Deployment
 
-No deployment credentials were available while building this, so **there is no live URL yet**. To deploy on Vercel (free Hobby plan):
+No deployment credentials were available while building this, so **there is no live URL yet**.
+Vercel's free Hobby plan fits the app: its functions may run up to 300s (the stylist route asks
+for 120), and the included 100 GB/month of transfer is ample *once the model is not served from
+your own deployment* — see below.
 
-1. Push this repository to GitHub.
-2. In Vercel, choose **Add New → Project**, import the repo, and keep the framework preset **Next.js**.
-3. Add any environment variables from `.env.example` (none are required for demo mode).
-4. **Model hosting:** the self-hosted model adds ~200 MB of static files. If the build or upload exceeds your plan's limits, add these environment variables to serve the identical model files from the public CDN instead:
+### Deploy on Vercel (free Hobby plan)
+
+1. Push this repository to GitHub, under your **personal** account: Hobby projects cannot be
+   connected to repositories owned by a GitHub organisation.
+2. In Vercel, choose **Add New → Project**, import the repo, and keep the framework preset
+   **Next.js**. Deploy from Git rather than the CLI — CLI uploads are capped at 100 MB on Hobby.
+3. Set these two environment variables on the project (Production, Preview and Development):
    ```
    SKIP_BG_MODELS=1
    NEXT_PUBLIC_BG_MODEL_URL=https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/
    ```
-5. Deploy. If you use Supabase, add the production URL to Supabase's Site URL and Redirect URLs.
+   This is the important one. `public/bg-models` is git-ignored, so the 207 MB of model files are
+   otherwise regenerated during the build and served from your deployment — and every first-time
+   visitor downloads about 90 MB of them at the default cut-out quality. That is roughly 1,100
+   visitors before a 100 GB monthly allowance is gone. Pointing the browser at the vendor's CDN
+   instead costs you nothing and drops the build output to about 24 MB.
 
-**Self-hosting** (any Node host or container): `npm ci && npm run build && npm start` (port 3000, or `-p <port>`). Serve over HTTPS so the camera and `crypto.subtle` work on phones.
+   If you would rather self-host the model anyway, leave both variables unset; `npm install`
+   fetches and copies it during the build. A production build with neither the files nor the
+   variable **fails on purpose** (see `next.config.ts`) rather than shipping a site whose cut-out
+   pipeline 404s on the first photo.
+4. Add anything else you want from `.env.example` — none of it is required, and with nothing set
+   the app runs in demo mode.
+5. Deploy. If you use Supabase, add the production URL to Supabase's **Site URL** and
+   **Redirect URLs** (`<your-url>/auth/update-password` and `<your-url>/home`).
+
+**Two conditions worth knowing before you publish.** Vercel's Hobby plan is for non-commercial
+use only — donations are fine, advertising, payments and affiliate links are not. And the
+background-removal model is AGPL-3.0 (see below), so a public deployment obliges you to publish
+your source; a public GitHub repository satisfies that.
+
+### Other hosts
+
+Azure Static Web Apps' Free plan also runs this app — hybrid Next.js gets a managed backend on
+every plan — but its 250 MB per-environment storage cap means the model *must* come from the CDN
+(a standalone build is about 60 MB, so 60 + 207 does not fit), and its Next.js hybrid support is
+still in preview. Netlify's current free tier is roughly 15 GB of transfer with a 60s function
+cap, which the stylist route can exceed.
+
+**Self-hosting** (any Node host or container): `npm ci && npm run build && npm start` (port 3000,
+or `-p <port>`). Serve over HTTPS so the camera and `crypto.subtle` work on phones.
 
 ---
 
@@ -160,6 +193,7 @@ src/
                             diversity-aware (MMR) selection; explanations; swap alternatives
     stylist/grounding.ts    Rejects any model outfit that isn't wearable from the real closet
     stylist/prompt.ts       Alias-based prompt builder
+    outfits.ts              What a deleted garment does to saved outfits (rewrite or remove)
     data/repo.ts            Storage interface
     data/local-repo.ts      Demo mode: IndexedDB (records + image blobs)
     data/supabase-repo.ts   Cloud mode: Postgres + private Storage with signed URLs
@@ -193,7 +227,7 @@ On-device background removal uses [`@imgly/background-removal`](https://github.c
 
 What runs in this repository:
 
-- **Vitest (37 tests)**: stylist engine (closet-only output, completeness, diversity, exclusions, anchors, cold-weather layering, dress codes, clash penalties, avoided colours, swaps), grounding (fabricated ids, incomplete and duplicate outfits, anchors, archived items), colour science, on-device analysis (leg gap, sleeves, stripes, filename hints), closet filters, insights, and API routes (honest 503 without keys, validation, rate limiting, a mocked Gemini response with alias mapping, quota errors, prompt-injection hygiene).
+- **Vitest (48 tests)**: stylist engine (closet-only output, completeness, diversity, exclusions, anchors, cold-weather layering, dress codes, clash penalties, avoided colours, swaps), grounding (fabricated ids, incomplete and duplicate outfits, anchors, archived items), the delete cascade (saved outfits never keep the name or explanation of a deleted piece, and ones left unwearable are removed), seasons north and south of the equator, colour science, on-device analysis (leg gap, sleeves, stripes, filename hints), closet filters, insights, and API routes (honest 503 without keys, validation, rate limiting, a mocked Gemini response with alias mapping, quota errors, prompt-injection hygiene).
 - **Playwright (2 tests, mobile Chromium)**: the full journey. It enters demo mode, rejects an invalid file, bulk-uploads 5 photos, and checks they're processed **one at a time** by the **real** model and that the cut-outs have genuine transparency. It then corrects predictions, saves, verifies persistence across reloads, generates outfits and checks every piece exists in the closet, saves an outfit and checks it persists, plans it for today, edits and deletes an item, and checks the offline banner. A second test checks the empty states.
 - The SQL migration was applied twice (idempotency) to PostgreSQL with stubbed `auth` and `storage` schemas. Cross-user reads and writes were blocked by RLS, check constraints rejected bad data, and cascades worked.
 

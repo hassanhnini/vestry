@@ -102,11 +102,11 @@ export default function AddPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between gap-3 border-b border-line/70 bg-ivory/92 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
+          <div className="sticky top-0 z-20 -mx-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line/70 bg-ivory/92 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
             <p className="text-sm text-ink-soft" aria-live="polite">
               {busy ? "Processing…" : `${ready.length} ready`} · {saved.length} saved · {q.drafts.length} total
             </p>
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <Button variant="secondary" size="sm" icon={<ImagePlus className="size-4" />} onClick={() => galleryRef.current?.click()}>
                 Add more
               </Button>

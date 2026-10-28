@@ -223,6 +223,13 @@ export class SupabaseRepo implements Repo {
     const c = this.urls.get(path);
     return c && c.expires > Date.now() ? c.url : null;
   }
+  cachedImageUrl(path: string) {
+    return this.fresh(path);
+  }
+  async refreshImageUrl(path: string) {
+    this.urls.delete(path);
+    return this.getImageUrl(path);
+  }
   async getImageUrl(path: string) {
     const cached = this.fresh(path);
     if (cached) return cached;

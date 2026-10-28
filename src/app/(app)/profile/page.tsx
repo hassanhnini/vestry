@@ -102,14 +102,14 @@ export default function ProfilePage() {
         icon={<LogOut className="size-4" />}
         onClick={async () => {
           const ok = await confirm({
-            title: "Log out?",
+            title: mode === "demo" ? "Leave demo mode?" : "Log out?",
             body: mode === "demo" ? "Your demo closet stays saved in this browser. You can pick up where you left off." : "You can log back in any time.",
-            confirmLabel: "Log out",
+            confirmLabel: mode === "demo" ? "Leave demo" : "Log out",
           });
           if (ok) await signOut();
         }}
       >
-        Log out
+        {mode === "demo" ? "Leave demo" : "Log out"}
       </Button>
 
       <Sheet

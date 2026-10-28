@@ -111,7 +111,7 @@ export default function ItemDetail() {
       title: `Delete ${item.name}?`,
       body: inOutfits.length ? (
         <>
-          It appears in {inOutfits.length} saved outfit{inOutfits.length > 1 ? "s" : ""}. It will be removed from them, and outfits left with fewer than two pieces will be deleted. If you might wear it again, consider <strong>archiving</strong> instead.
+          It appears in {inOutfits.length} saved outfit{inOutfits.length > 1 ? "s" : ""}. It will be taken out of {inOutfits.length > 1 ? "them" : "it"}: a look left without a top and a bottom (or a dress) is deleted, and one that survives is renamed and re-described to match what remains. If you might wear it again, consider <strong>archiving</strong> instead.
         </>
       ) : (
         "The photo and its details will be permanently removed."

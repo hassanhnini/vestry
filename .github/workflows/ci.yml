@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push supersedes whatever is still running for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # Linting, type-checking and building do not need the ~200 MB of model files
+      # copied into public/bg-models; pointing the browser at the vendor CDN satisfies
+      # the build's model check instead. See README ▸ Deployment.
+      - run: npm ci
+        env:
+          SKIP_BG_MODELS: "1"
+      - run: npm run check
+        env:
+          NEXT_PUBLIC_BG_MODEL_URL: https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/
+
+  e2e:
+    name: Browser journey
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # No SKIP_BG_MODELS here on purpose: the journey runs the real background-removal
+      # model and asserts the cut-outs have genuine transparency, so the app has to serve
+      # the model itself rather than depend on a third-party CDN being up.
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run build
+      - run: npm run test:e2e
+
+      - name: Upload the report when the journey fails
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
